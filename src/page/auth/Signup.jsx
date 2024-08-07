@@ -68,7 +68,7 @@ const Signup = () => {
             });
 
             dispatch(setUser(res.data.data));
-            navigate("/profile");
+            navigate("/");
         } catch (error) {
             toast({
                 variant: "destructive",
