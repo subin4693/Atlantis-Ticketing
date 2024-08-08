@@ -72,7 +72,7 @@ const Signin = () => {
             <div className="flex w-[1000px] bg-gray-400 dark:bg-stone-900 rounded-[25px]  overflow-hidden flex-col md:flex-row">
                 <div className="hidden md:flex w-1/2 overflow-hidden rounded-r-[25px]  ">
                     <img
-                        src="https://previews.123rf.com/images/sentavio/sentavio1702/sentavio170200069/72686226-qatar-country-design-template-linear-flat-famous-historic-sight-cartoon-style-web-site-vector.jpg"
+                        src="https://www.atlantis-expo.com/doha/img/banner_mobile_opening.png"
                         className="object-cover w-full h-full"
                     />
                 </div>
