@@ -22,6 +22,7 @@ const BookEvents = () => {
         const getTicketTypes = async () => {
             try {
                 const res = await axios.get(`${BASE_URL}/tickets/types/${eventId}`);
+                
                 const ticketTypes = res.data.ticketTypes;
                 setTypes(ticketTypes);
 
@@ -48,7 +49,7 @@ const BookEvents = () => {
         const tickets = Object.entries(ticketCounts)
             .filter(([_, quantity]) => quantity > 0)
             .map(([type, quantity]) => ({ type, quantity }));
-
+    
         if (tickets.length === 0) {
             return toast({
                 title: "Payment Incomplete",
@@ -56,7 +57,7 @@ const BookEvents = () => {
                 variant: "destructive",
             });
         }
-
+    
         if (!email) {
             return toast({
                 title: "Email Required",
@@ -64,7 +65,7 @@ const BookEvents = () => {
                 variant: "destructive",
             });
         }
-
+    
         try {
             setLoading(true);
             const response = await axios.post(`${BASE_URL}/tickets/bookings`, {
@@ -73,11 +74,14 @@ const BookEvents = () => {
                 tickets,
                 promoCode: code, 
             });
-
-            if (response.data.success) {
+    
+            console.log("Response from server:", response);
+    
+            // Check response status
+            if (response.status === 201) {
                 toast({
                     title: "Payment Successful",
-                    description: "Your payment has been processed successfully. Thank you for booking with us!",
+                    description: response.data.message || "Your payment has been processed successfully. Thank you for booking with us!",
                 });
                 navigate("/");
             } else {
@@ -98,6 +102,7 @@ const BookEvents = () => {
             setLoading(false);
         }
     };
+    
 
     return (
         <div>

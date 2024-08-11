@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { DatePickerWithRange } from "@/components/DatePicker";
 import useFirebaseUpload from "@/hooks/use-firebaseUpload";
 import { useToast } from "@/components/ui/use-toast";
+
 const EventTitle = ({
     setTitle,
     title,
@@ -29,11 +30,11 @@ const EventTitle = ({
     const [promoCodeDiscount, setPromoCodeDiscount] = useState("");
     const [expiryDate, setExpiryDate] = useState("");
     const [maxUses, setMaxUses] = useState("");
-    const BASE_URL = import.meta.env.VITE_BASE_URL;
     const { toast } = useToast();
     const navigate = useNavigate();
     const { progress, error, downloadURL } = useFirebaseUpload(img);
     const [step, setStep] = useState(1);
+    const BASE_URL = import.meta.env.VITE_BASE_URL;
 
     useEffect(() => {
         if (error) {
@@ -68,33 +69,35 @@ const EventTitle = ({
                 });
             }
         } else if (step === 2) {
+            // Check promo code fields only if they are provided
             if (
-                !promoCode ||
-                !promoCodeDiscount ||
-                !expiryDate ||
-                !maxUses
+                (promoCode && !promoCodeDiscount) ||
+                (promoCodeDiscount && !expiryDate) ||
+                (expiryDate && !maxUses)
             ) {
                 toast({
                     variant: "destructive",
-                    title: "Please provide promo code, discount, expiry date, and max uses.",
+                    title: "Please provide complete promo code details if you include one.",
                 });
                 return;
             }
 
-            // Call API to add promo code
-            addPromoCode(promoCode, promoCodeDiscount, expiryDate, maxUses)
-                .then(() => {
-                    toast({
-                        variant: "success",
-                        title: "Promo code added successfully.",
+            // Call API to add promo code if details are provided
+            if (promoCode && promoCodeDiscount && expiryDate && maxUses) {
+                addPromoCode(promoCode, promoCodeDiscount, expiryDate, maxUses)
+                    .then(() => {
+                        toast({
+                            variant: "success",
+                            title: "Promo code added successfully.",
+                        });
+                    })
+                    .catch(() => {
+                        toast({
+                            variant: "destructive",
+                            title: "Failed to add promo code.",
+                        });
                     });
-                })
-                .catch(() => {
-                    toast({
-                        variant: "destructive",
-                        title: "Failed to add promo code.",
-                    });
-                });
+            }
 
             handleConfirm(setLoading);
         }
@@ -102,7 +105,6 @@ const EventTitle = ({
 
     const addPromoCode = async (code, discount, expiryDate, maxUses) => {
         try {
-            // await axios.post(`${BASE_URL}/tickets/bookings`, {
             const response = await fetch(`${BASE_URL}/events/add-promo`, {
                 method: "POST",
                 headers: {
@@ -277,96 +279,100 @@ const EventTitle = ({
                                     <div className="flex-1 space-y-5">
                                         {step === 2 && (
                                             <div className="w-full flex-1 space-y-3">
-                                                {categorys.map(
-                                                    ({ category, price }, index) => (
-                                                        <div
-                                                            className="flex gap-2"
-                                                            key={index}
+                                                {categorys.map((category, index) => (
+                                                    <div
+                                                        key={index}
+                                                        className="bg-input rounded-[25px] p-4 shadow-custom"
+                                                    >
+                                                        <input
+                                                            type="text"
+                                                            className="bg-input rounded-[25px] p-2 w-full"
+                                                            placeholder="Category"
+                                                            value={category.category}
+                                                            onChange={(e) =>
+                                                                handleCategoryChange(
+                                                                    index,
+                                                                    "category",
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            className="bg-input rounded-[25px] p-2 w-full mt-2"
+                                                            placeholder="Price"
+                                                            value={category.price}
+                                                            onChange={(e) =>
+                                                                handleCategoryChange(
+                                                                    index,
+                                                                    "price",
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                        />
+                                                        <button
+                                                            className="text-red-500 mt-2"
+                                                            onClick={() =>
+                                                                handleRemoveCategory(
+                                                                    index
+                                                                )
+                                                            }
                                                         >
-                                                            <input
-                                                                type="text"
-                                                                className="bg-input rounded-[25px] p-2 w-full shadow-custom"
-                                                                value={category}
-                                                                onChange={(e) =>
-                                                                    handleCategoryChange(
-                                                                        index,
-                                                                        "category",
-                                                                        e.target.value
-                                                                    )
-                                                                }
-                                                                placeholder="Category"
-                                                            />
-                                                            <input
-                                                                type="number"
-                                                                className="bg-input rounded-[25px] p-2 w-full shadow-custom"
-                                                                value={price}
-                                                                onChange={(e) =>
-                                                                    handleCategoryChange(
-                                                                        index,
-                                                                        "price",
-                                                                        e.target.value
-                                                                    )
-                                                                }
-                                                                placeholder="Price"
-                                                            />
-                                                            <button
-                                                                className="bg-red-500 text-white rounded-md px-3 py-1"
-                                                                onClick={() =>
-                                                                    handleRemoveCategory(
-                                                                        index
-                                                                    )
-                                                                }
-                                                            >
-                                                                Remove
-                                                            </button>
-                                                        </div>
-                                                    )
-                                                )}
-                                                <Button
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    className="w-full rounded-md bg-primary py-2 text-white"
                                                     onClick={handleAddCategory}
-                                                    className="w-full rounded-md bg-primary px-5 py-3"
                                                 >
                                                     Add Category
-                                                </Button>
-                                                <input
-                                                    type="text"
-                                                    className="bg-input rounded-[25px] p-2 w-full shadow-custom"
-                                                    value={promoCode}
-                                                    onChange={(e) =>
-                                                        setPromoCode(e.target.value)
-                                                    }
-                                                    placeholder="Promo Code"
-                                                />
-                                                <input
-                                                    type="number"
-                                                    className="bg-input rounded-[25px] p-2 w-full shadow-custom"
-                                                    value={promoCodeDiscount}
-                                                    onChange={(e) =>
-                                                        setPromoCodeDiscount(e.target.value)
-                                                    }
-                                                    placeholder="Discount (%)"
-                                                />
-                                                <input
-                                                    type="date"
-                                                    className="bg-input rounded-[25px] p-2 w-full shadow-custom"
-                                                    value={expiryDate}
-                                                    onChange={(e) =>
-                                                        setExpiryDate(e.target.value)
-                                                    }
-                                                    placeholder="Expiry Date"
-                                                />
-                                                <input
-                                                    type="number"
-                                                    className="bg-input rounded-[25px] p-2 w-full shadow-custom"
-                                                    value={maxUses}
-                                                    onChange={(e) =>
-                                                        setMaxUses(e.target.value)
-                                                    }
-                                                    placeholder="Max Uses"
-                                                />
+                                                </button>
                                             </div>
                                         )}
                                     </div>
+                                    {step === 2 && (
+                                        <div className="flex flex-col space-y-4">
+                                            <input
+                                                type="text"
+                                                className="bg-input rounded-[25px] p-2 w-full shadow-custom"
+                                                placeholder="Promo Code"
+                                                value={promoCode}
+                                                onChange={(e) =>
+                                                    setPromoCode(e.target.value)
+                                                }
+                                            />
+                                            <input
+                                                type="text"
+                                                className="bg-input rounded-[25px] p-2 w-full shadow-custom"
+                                                placeholder="Promo Code Discount (%)"
+                                                value={promoCodeDiscount}
+                                                onChange={(e) =>
+                                                    setPromoCodeDiscount(
+                                                        e.target.value
+                                                    )
+                                                }
+                                            />
+                                            <input
+                                                type="date"
+                                                className="bg-input rounded-[25px] p-2 w-full shadow-custom"
+                                                placeholder="Expiry Date"
+                                                value={expiryDate}
+                                                onChange={(e) =>
+                                                    setExpiryDate(e.target.value)
+                                                }
+                                            />
+                                            <input
+                                                type="number"
+                                                className="bg-input rounded-[25px] p-2 w-full shadow-custom"
+                                                placeholder="Max Uses"
+                                                value={maxUses}
+                                                onChange={(e) =>
+                                                    setMaxUses(e.target.value)
+                                                }
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
