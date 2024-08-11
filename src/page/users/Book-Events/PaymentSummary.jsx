@@ -1,123 +1,135 @@
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import React, { useState } from "react";
-
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
+import React, { useState, useEffect } from "react";
+import TicketBox from "./TicketBox";
+import PaymentSummary from "./PaymentSummary";
+import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
+import { useSelector } from "react-redux";
 import { useToast } from "@/components/ui/use-toast";
 
-const PaymentSummary = ({
-    code,
-    setCode,
-    totalCost,
-    handlePayment,
-    setEmail,
-    email,
-}) => {
+const BookEvents = () => {
+    const [ticketCounts, setTicketCounts] = useState({});
+    const [email, setEmail] = useState("");
+    const [types, setTypes] = useState([]);
+    const [totalCost, setTotalCost] = useState(0);
+    const [code, setCode] = useState(""); // Promo code state
+    const { user } = useSelector((state) => state.user);
+    const BASE_URL = import.meta.env.VITE_BASE_URL;
     const { toast } = useToast();
-    const [loading, setLoading] = useState(false);
-    const [value, setValue] = useState("");
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return (
-        <div className="bg-secondary rounded-lg p-5 w-full lg:w-1/2 space-y-3 shadow-lg">
-            <h1 className="text-xl">Payment Summary</h1>
-            <p>
-                Please review the details below and proceed with your payment.
-            </p>
-            <div className="p-1 flex shadow-custom rounded-sm overflow-hidden dark:border border-background dark:border-[1px]">
-                <input
-                    type="text"
-                    placeholder="Voucher Code / Promo Code"
-                    className="bg-secondary border-none p-3 pl-5 w-full outline-none flex-1"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                />
-                <Button
-                    variant="outline"
-                    disabled={!code}
-                    className="h-[3.2rem] rounded-md"
-                >
-                    Apply
-                </Button>
-            </div>
-            <div>
-                <p>
-                    <span className="text-xl">Sub Total :</span> {totalCost}
-                </p>
-                <p>
-                    <span className="text-2xl">Total:</span> {totalCost}
-                </p>
-            </div>
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button className="w-full md:w-1/2" disabled={loading}>
-                        {loading ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            "Proceed to Payment"
-                        )}
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Complete Your Booking</DialogTitle>
-                        <DialogDescription>
-                            To finalize your booking, please enter your email
-                            address. A confirmation email with the booking
-                            details will be sent to you.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex items-center space-x-2">
-                        <div className="grid flex-1 gap-2">
-                            <input
-                                type="email"
-                                className="bg-input rounded-md p-3 pl-5 w-full shadow-custom"
-                                placeholder="Your email address"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter className="sm:justify-start">
-                        <DialogClose asChild>
-                            <Button
-                                onClick={() => {
-                                    if (!email || email.trim().length === 0) {
-                                        return toast({
-                                            title: "Payment Failed",
-                                            description:
-                                                "Please enter a valid email address.",
-                                            variant: "destructive",
-                                        });
-                                    }
-                                    if (!emailRegex.test(email.trim())) {
-                                        return toast({
-                                            title: "Payment Failed",
-                                            description:
-                                                "The email address you entered is invalid. Please enter a valid email address.",
-                                            variant: "destructive",
-                                        });
-                                    }
+    const { eventId } = useParams();
+    const navigate = useNavigate();
 
-                                    handlePayment(setLoading);
-                                }}
-                            >
-                                Confirm Payment
-                            </Button>
-                        </DialogClose>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+    useEffect(() => {
+        const getTicketTypes = async () => {
+            try {
+                const res = await axios.get(`${BASE_URL}/tickets/types/${eventId}`);
+                const ticketTypes = res.data.ticketTypes;
+                setTypes(ticketTypes);
+
+                const initialCounts = ticketTypes.reduce((acc, { _id }) => {
+                    acc[_id] = 0;
+                    return acc;
+                }, {});
+                setTicketCounts(initialCounts);
+            } catch (error) {
+                console.error("Error fetching ticket types:", error);
+                toast({
+                    title: "Error",
+                    description: "Unable to fetch ticket types. Please try again later.",
+                    variant: "destructive",
+                });
+            }
+        };
+
+        getTicketTypes();
+    }, [eventId, BASE_URL, toast]);
+
+    const handlePayment = async (setLoading) => {
+        const tickets = Object.entries(ticketCounts)
+            .filter(([_, quantity]) => quantity > 0)
+            .map(([type, quantity]) => ({ type, quantity }));
+
+        if (tickets.length === 0) {
+            return toast({
+                title: "Payment Incomplete",
+                description: "Please select at least one ticket before proceeding.",
+                variant: "destructive",
+            });
+        }
+
+        try {
+            setLoading(true);
+            const response = await axios.post(`${BASE_URL}/tickets/bookings`, {
+                emailId: email,
+                eventId: eventId,
+                tickets,
+                promoCode: code, 
+            });
+
+            const { message } = response.data;
+
+            if (message === "Promo code has expired") {
+                toast({
+                    title: "Promo Code Expired",
+                    description: "The promo code you entered has expired. Please use a valid promo code.",
+                    variant: "destructive",
+                });
+            } else if (message === "Promo code usage limit exceeded") {
+                toast({
+                    title: "Promo Code Limit Exceeded",
+                    description: "The promo code usage limit has been reached. Please use a different promo code.",
+                    variant: "destructive",
+                });
+            } else if (response.data.success) {
+                toast({
+                    title: "Payment Successful",
+                    description: "Your payment has been processed successfully. Thank you for booking with us!",
+                });
+                navigate("/");
+            } else {
+                toast({
+                    title: "Payment Failed",
+                    description: message || "There was an issue with processing your payment. Please try again later.",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error("Error booking tickets:", error);
+            toast({
+                title: "Payment Failed",
+                description: "There was an issue with processing your payment. Please try again later.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div>
+            <div className="flex flex-wrap gap-5 mb-5">
+                {types.map((type) => (
+                    <TicketBox
+                        key={type._id}
+                        id={type._id}
+                        type={type.category}
+                        ticketCount={ticketCounts}
+                        setTicketCount={setTicketCounts}
+                        price={type.price}
+                        setTotalCost={setTotalCost}
+                    />
+                ))}
+            </div>
+
+            <PaymentSummary
+                totalCost={totalCost}
+                code={code}
+                setCode={setCode}
+                handlePayment={handlePayment}
+                setEmail={setEmail}
+                email={email}
+            />
         </div>
     );
 };
 
-export default PaymentSummary;
+export default BookEvents;
